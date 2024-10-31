@@ -22,11 +22,11 @@ This initial release includes the base implementation for all five regions defin
 ## **Features**
 
 - **Coverage of IF97 Regions:**
-  - **Region 1:** Liquid water region (compressed water).
-  - **Region 2:** Superheated steam region.
-  - **Region 3:** High-temperature and high-pressure region.
-  - **Region 4:** Saturation curve region (coexistence of liquid and vapor).
-  - **Region 5:** High-temperature steam region.
+  - **Region 1:** Subcooled Water.
+  - **Region 2:** Supercritical water/steam.
+  - **Region 3:** Superheated steam.
+  - **Region 4:** Saturation data.
+  - **Region 5:** High-temperature steam.
 
 - **Implemented Properties:**
   - Specific volume
