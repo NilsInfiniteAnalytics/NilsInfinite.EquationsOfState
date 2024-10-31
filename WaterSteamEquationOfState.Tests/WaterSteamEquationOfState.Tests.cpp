@@ -214,12 +214,14 @@ namespace WaterSteamEquationOfStateTests
 		static void VerifyRegion3Properties(const Region3TestCase& testCase)
 		{
 			const double pressure = WaterEquationOfState->CalculateRegion3Pressure(testCase.Temperature, testCase.Density);
+			const double density = WaterEquationOfState->CalculateRegion3Density(testCase.Temperature, testCase.ExpectedPressure);
 			const double specificInternalEnergy = WaterEquationOfState->CalculateRegion3SpecificInternalEnergy(testCase.Temperature, testCase.Density);
 			const double specificEntropy = WaterEquationOfState->CalculateRegion3SpecificEntropy(testCase.Temperature, testCase.Density);
 			const double specificEnthalpy = WaterEquationOfState->CalculateRegion3SpecificEnthalpy(testCase.Temperature, testCase.Density);
 			const double specificIsobaricHeatCapacity = WaterEquationOfState->CalculateRegion3SpecificIsobaricHeatCapacity(testCase.Temperature, testCase.Density);
 			const double speedOfSound = WaterEquationOfState->CalculateRegion3SpeedOfSound(testCase.Temperature, testCase.Density);
 
+			Assert::AreEqual(testCase.Density, density, TOLERANCE, L"Density mismatch");
 			Assert::AreEqual(testCase.ExpectedPressure, pressure, TOLERANCE, L"Pressure mismatch.");
 			Assert::AreEqual(testCase.ExpectedSpecificInternalEnergy, specificInternalEnergy, TOLERANCE, L"Specific internal energy mismatch.");
 			Assert::AreEqual(testCase.ExpectedSpecificEntropy, specificEntropy, TOLERANCE, L"Specific entropy mismatch.");

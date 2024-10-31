@@ -240,6 +240,80 @@ Region WaterSteamEquationOfState::DetermineRegion(const double temperature, cons
 	return INVALID;
 }
 
+#pragma region Array Compute Methods
+
+void WaterSteamEquationOfState::CalculateSpecificEnthalpyArray(
+	const double* temperatures,
+	const double* pressures,
+	double* enthalpies,
+	const size_t length) const
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		const double temperature = temperatures[i];
+		const double pressure = pressures[i];
+		switch (DetermineRegion(temperature, pressure))
+		{
+		case SUBCOOLED_WATER:
+			enthalpies[i] = CalculateRegion1SpecificEnthalpy(temperature, pressure);
+			break;
+		case SUPERCRITICAL_WATER_STEAM:
+			enthalpies[i] = CalculateRegion2SpecificEnthalpy(temperature, pressure);
+			break;
+		case SUPERHEATED_STEAM:
+		{
+			const double density = CalculateRegion3Density(temperature, pressure);
+			enthalpies[i] = CalculateRegion3SpecificEnthalpy(temperature, density);
+		}
+		break;
+		case HIGH_TEMPERATURE_STEAM:
+			enthalpies[i] = CalculateRegion5SpecificEnthalpy(temperature, pressure);
+			break;
+		case SATURATION:
+		case INVALID:
+			enthalpies[i] = std::numeric_limits<double>::quiet_NaN();
+			break;
+		}
+	}
+}
+
+void WaterSteamEquationOfState::CalculateSpecificEntropyArray(
+	const double* temperatures,
+	const double* pressures,
+	double* enthalpies,
+	const size_t length) const
+{
+	for (size_t i = 0; i < length; i++)
+	{
+		const double temperature = temperatures[i];
+		const double pressure = pressures[i];
+		switch (DetermineRegion(temperature, pressure))
+		{
+		case SUBCOOLED_WATER:
+			enthalpies[i] = CalculateRegion1SpecificEntropy(temperature, pressure);
+			break;
+		case SUPERCRITICAL_WATER_STEAM:
+			enthalpies[i] = CalculateRegion2SpecificEntropy(temperature, pressure);
+			break;
+		case SUPERHEATED_STEAM:
+		{
+			const double density = CalculateRegion3Density(temperature, pressure);
+			enthalpies[i] = CalculateRegion3SpecificEntropy(temperature, density);
+		}
+		break;
+		case HIGH_TEMPERATURE_STEAM:
+			enthalpies[i] = CalculateRegion5SpecificEntropy(temperature, pressure);
+			break;
+		case SATURATION:
+		case INVALID:
+			enthalpies[i] = std::numeric_limits<double>::quiet_NaN();
+			break;
+		}
+	}
+}
+
+#pragma endregion
+
 #pragma region Region 1 Equations
 
 double WaterSteamEquationOfState::CalculateRegion1ReciprocalReducedPressure(const double pressure)
@@ -801,6 +875,39 @@ double WaterSteamEquationOfState::CalculateRegion23BoundaryPressure(const double
 
 #pragma region Region 3 Equations
 
+double WaterSteamEquationOfState::CalculateRegion3Density(const double temperature, const double pressure) const
+{
+	double density = 500.0;
+	constexpr double tolerance = 1e-6;
+	constexpr int maxIterations = 100;
+	constexpr double deltaDensity = 1e-4;
+
+	for (int iteration = 0; iteration < maxIterations; ++iteration)
+	{
+		const double f = CalculateRegion3Pressure(temperature, density) - pressure;
+		if (fabs(f) < tolerance)
+		{
+			return density;
+		}
+		const double densityPlusDelta = density + deltaDensity;
+		const double fPlusDelta = CalculateRegion3Pressure(temperature, densityPlusDelta) - pressure;
+		const double derivative = (fPlusDelta - f) / deltaDensity;
+		if (fabs(derivative) < 1e-10)
+		{
+			throw std::runtime_error("Derivative is too small; Newton-Raphson method may not converge.");
+		}
+		const double densityNew = density - f / derivative;
+		if (densityNew <= 0 || densityNew > 2000)
+		{
+			throw std::runtime_error("Density out of bounds during Newton-Raphson iteration.");
+		}
+
+		density = densityNew;
+	}
+
+	throw std::runtime_error("Region 3 density calculation failed: maximum number of iterations reached.");
+}
+
 double WaterSteamEquationOfState::CalculateRegion3ReducedTemperature(const double temperature)
 {
 	return temperature / CRITICAL_TEMPERATURE;
@@ -1331,3 +1438,68 @@ double WaterSteamEquationOfState::CalculateSecondMixedDerivativeDimensionlessRes
 }
 
 #pragma endregion
+
+WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquationOfState(const char* databasePath)
+{
+	try
+	{
+		return new WaterSteamEquationOfState(std::string(databasePath));
+	}
+	catch (...)
+	{
+		return nullptr;
+	}
+}
+
+WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterSteamEquationOfState* instance)
+{
+	delete instance;
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEnthalpyArray(
+	WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* enthalpies,
+	size_t length)
+{
+	if (!instance)
+	{
+		return -1; // Invalid instance
+	}
+
+	try
+	{
+		instance->CalculateSpecificEnthalpyArray(temperatures, pressures, enthalpies, length);
+		return 0; // Success
+	}
+	catch (...)
+	{
+		// Handle exceptions
+		return -1; // Error
+	}
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEntropyArray(
+	WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* entropies,
+	size_t length)
+{
+	if (!instance)
+	{
+		return -1; // Invalid instance
+	}
+
+	try
+	{
+		instance->CalculateSpecificEntropyArray(temperatures, pressures, entropies, length);
+		return 0; // Success
+	}
+	catch (...)
+	{
+		// Handle exceptions
+		return -1; // Error
+	}
+}

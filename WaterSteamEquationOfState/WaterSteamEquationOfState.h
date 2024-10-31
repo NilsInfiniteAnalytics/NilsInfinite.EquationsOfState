@@ -2,6 +2,7 @@
 #include "pch.h"
 #include <functional>
 #include <array>
+#include <string>
 #include "sqlite3.h"
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -60,7 +61,7 @@ enum Region
 class WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState {
 public:
 	explicit WaterSteamEquationOfState(const std::string& databasePath);
-	std::string GetDatabasePath() const;
+	[[nodiscard]] std::string GetDatabasePath() const;
 	void SetDatabasePath(const std::string& path);
 
 	static constexpr double SPECIFIC_GAS_CONSTANT = 0.461526;
@@ -107,54 +108,60 @@ public:
 	static constexpr int NUMBER_OF_REGION4_COEFFICIENTS = 10;
 	static constexpr int NUMBER_OF_REGION5_COEFFICIENTS = 6;
 
-	Region DetermineRegion(double temperature, double pressure) const;
+	[[nodiscard]] Region DetermineRegion(double temperature, double pressure) const;
+	void CalculateSpecificEnthalpyArray(const double* temperatures,
+		const double* pressures,
+		double* enthalpies,
+		const size_t length) const;
+	void CalculateSpecificEntropyArray(const double* temperatures, const double* pressures, double* enthalpies,
+	                                   size_t length) const;
 
 #pragma region REGION 1 METHOD SIGNATURES
-	double CalculateRegion1SpecificVolume(double temperature, double pressure) const;
-	double CalculateRegion1SpecificInternalEnergy(double temperature, double pressure) const;
-	double CalculateRegion1SpecificGibbsFreeEnergy(double temperature, double pressure) const;
-	double CalculateRegion1SpecificEntropy(double temperature, double pressure) const;
-	double CalculateRegion1SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion1SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion1SpecificEnthalpy(double temperature, double pressure) const;
-	double CalculateRegion1SpeedOfSound(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificVolume(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificInternalEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificGibbsFreeEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificEntropy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpecificEnthalpy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion1SpeedOfSound(double temperature, double pressure) const;
 	static double CalculateRegion1ReducedTemperature(double temperature);
 	static double CalculateRegion1ReducedPressure(double pressure);
 	static double CalculateRegion1ReciprocalReducedTemperature(double temperature);
 	static double CalculateRegion1ReciprocalReducedPressure(double pressure);
-	double CalculateDimensionlessGibbsFreeEnergyRegion1(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessGibbsFreeEnergyPressureRegion1(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessGibbsFreeEnergyPressureRegion1(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
-	double CalculateSecondMixedDerivativeDimensionlessGibbsFreeEnergyRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateDimensionlessGibbsFreeEnergyRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessGibbsFreeEnergyPressureRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessGibbsFreeEnergyPressureRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondMixedDerivativeDimensionlessGibbsFreeEnergyRegion1(double temperature, double pressure) const;
 #pragma endregion
 
 #pragma region REGION 2 METHOD SIGNATURES
-	double CalculateRegion2SpecificVolume(double temperature, double pressure) const;
-	double CalculateRegion2SpecificInternalEnergy(double temperature, double pressure) const;
-	double CalculateRegion2SpecificGibbsFreeEnergy(double temperature, double pressure) const;
-	double CalculateRegion2SpecificEntropy(double temperature, double pressure) const;
-	double CalculateRegion2SpecificEnthalpy(double temperature, double pressure) const;
-	double CalculateRegion2SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion2SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion2SpeedOfSound(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificVolume(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificInternalEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificGibbsFreeEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificEntropy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificEnthalpy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion2SpeedOfSound(double temperature, double pressure) const;
 	static double CalculateRegion2ReducedPressure(double pressure);
 	static double CalculateRegion2ReducedTemperature(double temperature);
 	static double CalculateRegion2ReciprocalReducedTemperature(double temperature);
 	static double CalculateRegion2ReciprocalReducedPressure(double pressure);
-	double CalculateDimensionlessGibbsFreeEnergyRegion2(double temperature, double pressure) const;
-	double CalculateDimensionlessIdealGibbsFreeEnergyRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateDimensionlessGibbsFreeEnergyRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateDimensionlessIdealGibbsFreeEnergyRegion2(double temperature, double pressure) const;
 	static double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyPressureRegion2(const double pressure);
 	static double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyPressureRegion2(const double pressure);
-	double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion2(const double temperature) const;
-	double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion2(const double temperature) const;
-	double CalculateDimensionlessResidualGibbsFreeEnergyRegion2(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion2(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion2(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion2(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion2(double temperature, double pressure) const;
-	double CalculateSecondMixedDerivativeDimensionlessResidualGibbsFreeEnergyPressureTemperatureRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion2(const double temperature) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion2(const double temperature) const;
+	[[nodiscard]] double CalculateDimensionlessResidualGibbsFreeEnergyRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion2(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondMixedDerivativeDimensionlessResidualGibbsFreeEnergyPressureTemperatureRegion2(double temperature, double pressure) const;
 #pragma endregion
 
 #pragma region REGION BOUNDARY 2_3 METHOD SIGNATURES
@@ -162,57 +169,58 @@ public:
 	static double CalculateRegion23ReducedTemperature(double temperature);
 	static double CalculateRegion23ReciprocalReducedTemperature(double temperature);
 	static double CalculateRegion23ReciprocalReducedPressure(double pressure);
-	double CalculateRegion23BoundaryTemperature(double pressure) const;
-	double CalculateRegion23BoundaryPressure(double temperature) const;
+	[[nodiscard]] double CalculateRegion23BoundaryTemperature(double pressure) const;
+	[[nodiscard]] double CalculateRegion23BoundaryPressure(double temperature) const;
+	double CalculateRegion3Density(double temperature, double pressure) const;
 #pragma endregion
 
 #pragma region REGION 3 METHOD SIGNATURES
 	static double CalculateRegion3ReducedTemperature(double temperature);
 	static double CalculateRegion3ReciprocalReducedTemperature(double temperature);
 	static double CalculateRegion3ReducedDensity(double density);
-	double CalculateRegion3SpecificHelmholtzFreeEnergy(double temperature, double density) const;
-	double CalculateRegion3DimensionlessHelmholtzEnergy(double temperature, double density) const;
-	double CalculateRegion3FirstDerivativeDimensionlessHelmholtzEnergyTemperature(double temperature, double density) const;
-	double CalculateRegion3SecondDerivativeDimensionlessHelmholtzEnergyTemperature(double temperature, double density) const;
-	double CalculateRegion3FirstDerivativeDimensionlessHelmholtzEnergyDensity(double temperature, double density) const;
-	double CalculateRegion3SecondDerivativeDimensionlessHelmholtzEnergyDensity(double temperature, double density) const;
-	double CalculateRegion3SecondMixedDerivativeDimensionlessHelmholtzEnergyDensityTemperature(double temperature, double density) const;
-	double CalculateRegion3Pressure(double temperature, double density) const;
-	double CalculateRegion3SpecificInternalEnergy(double temperature, double density) const;
-	double CalculateRegion3SpecificEntropy(double temperature, double density) const;
-	double CalculateRegion3SpecificEnthalpy(double temperature, double density) const;
-	double CalculateRegion3SpecificIsochoricHeatCapacity(double temperature, double density) const;
-	double CalculateRegion3SpecificIsobaricHeatCapacity(double temperature, double density) const;
-	double CalculateRegion3SpeedOfSound(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificHelmholtzFreeEnergy(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3DimensionlessHelmholtzEnergy(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3FirstDerivativeDimensionlessHelmholtzEnergyTemperature(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SecondDerivativeDimensionlessHelmholtzEnergyTemperature(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3FirstDerivativeDimensionlessHelmholtzEnergyDensity(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SecondDerivativeDimensionlessHelmholtzEnergyDensity(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SecondMixedDerivativeDimensionlessHelmholtzEnergyDensityTemperature(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3Pressure(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificInternalEnergy(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificEntropy(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificEnthalpy(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificIsochoricHeatCapacity(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpecificIsobaricHeatCapacity(double temperature, double density) const;
+	[[nodiscard]] double CalculateRegion3SpeedOfSound(double temperature, double density) const;
 #pragma endregion
 
 #pragma region REGION 4 METHOD SIGNATURES
-	double CalculateRegion4SaturationPressure(double temperature) const;
-	double CalculateRegion4SaturationTemperature(double pressure) const;
+	[[nodiscard]] double CalculateRegion4SaturationPressure(double temperature) const;
+	[[nodiscard]] double CalculateRegion4SaturationTemperature(double pressure) const;
 
 #pragma endregion
 
 #pragma region REGION 5 METHOD SIGNATURES
 	static double CalculateRegion5ReciprocalReducedTemperature(double temperature);
 	static double CalculateRegion5ReducedPressure(double pressure);
-	double CalculateRegion5SpecificVolume(double temperature, double pressure) const;
-	double CalculateRegion5SpecificInternalEnergy(double temperature, double pressure) const;
-	double CalculateRegion5SpecificEntropy(double temperature, double pressure) const;
-	double CalculateRegion5SpecificEnthalpy(double temperature, double pressure) const;
-	double CalculateRegion5SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion5SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
-	double CalculateRegion5SpeedOfSound(double temperature, double pressure) const;
-	double CalculateRegion5SpecificGibbsFreeEnergy(double temperature, double pressure) const;
-	double CalculateDimensionlessGibbsFreeEnergyRegion5(double temperature, double pressure) const;
-	double CalculateDimensionlessIdealGibbsFreeEnergyRegion5(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion5(double temperature) const;
-	double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion5(double temperature) const;
-	double CalculateDimensionlessResidualGibbsFreeEnergyRegion5(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion5(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion5(double temperature, double pressure) const;
-	double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion5(double temperature, double pressure) const;
-	double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion5(double temperature, double pressure) const;
-	double CalculateSecondMixedDerivativeDimensionlessResidualGibbsFreeEnergyPressureTemperatureRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificVolume(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificInternalEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificEntropy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificEnthalpy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificIsochoricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificIsobaricHeatCapacity(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpeedOfSound(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateRegion5SpecificGibbsFreeEnergy(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateDimensionlessGibbsFreeEnergyRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateDimensionlessIdealGibbsFreeEnergyRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion5(double temperature) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyTemperatureRegion5(double temperature) const;
+	[[nodiscard]] double CalculateDimensionlessResidualGibbsFreeEnergyRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyPressureRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateFirstDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondDerivativeDimensionlessResidualGibbsFreeEnergyTemperatureRegion5(double temperature, double pressure) const;
+	[[nodiscard]] double CalculateSecondMixedDerivativeDimensionlessResidualGibbsFreeEnergyPressureTemperatureRegion5(double temperature, double pressure) const;
 	static double CalculateFirstDerivativeDimensionlessIdealGibbsFreeEnergyPressureRegion5(double pressure);
 	static double CalculateSecondDerivativeDimensionlessIdealGibbsFreeEnergyPressureRegion5(double pressure);
 #pragma endregion
@@ -272,3 +280,20 @@ private:
 	std::array<Region25IdealCoefficient, NUMBER_OF_REGION5_COEFFICIENTS> Region5IdealCoefficients;
 	std::array<Region25ResidualCoefficient, NUMBER_OF_REGION5_COEFFICIENTS> Region5ResidualCoefficients;
 };
+
+extern "C" {
+	WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquationOfState(const char* databasePath);
+	WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterSteamEquationOfState* instance);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEnthalpyArray(
+		WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* enthalpies,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEntropyArray(
+		WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* entropies,
+		size_t length);
+}
