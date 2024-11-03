@@ -877,35 +877,42 @@ double WaterSteamEquationOfState::CalculateRegion23BoundaryPressure(const double
 
 double WaterSteamEquationOfState::CalculateRegion3Density(const double temperature, const double pressure) const
 {
-	double density = 500.0;
-	constexpr double tolerance = 1e-6;
-	constexpr int maxIterations = 100;
-	constexpr double deltaDensity = 1e-4;
-
-	for (int iteration = 0; iteration < maxIterations; ++iteration)
-	{
-		const double f = CalculateRegion3Pressure(temperature, density) - pressure;
-		if (fabs(f) < tolerance)
-		{
-			return density;
-		}
-		const double densityPlusDelta = density + deltaDensity;
-		const double fPlusDelta = CalculateRegion3Pressure(temperature, densityPlusDelta) - pressure;
-		const double derivative = (fPlusDelta - f) / deltaDensity;
-		if (fabs(derivative) < 1e-10)
-		{
-			throw std::runtime_error("Derivative is too small; Newton-Raphson method may not converge.");
-		}
-		const double densityNew = density - f / derivative;
-		if (densityNew <= 0 || densityNew > 2000)
-		{
-			throw std::runtime_error("Density out of bounds during Newton-Raphson iteration.");
-		}
-
-		density = densityNew;
+	constexpr int maxIterations = 10000;
+	double a = 0.001;
+	double b = 2000.0;
+	auto f = [&](const double density) -> double {
+		return CalculateRegion3Pressure(temperature, density) - pressure;
+		};
+	double fa = f(a);
+	double fb = f(b);
+	int boundIteration = 0;
+	constexpr int maxBoundIterations = 100;
+	while (fa * fb > 0 && boundIteration < maxBoundIterations) {
+		b -= 100.0;
+		fb = f(b);
+		++boundIteration;
 	}
-
-	throw std::runtime_error("Region 3 density calculation failed: maximum number of iterations reached.");
+	if (fa * fb > 0) {
+		throw std::runtime_error("Failed to find valid bounds for density.");
+	}
+	for (int iteration = 0; iteration < maxIterations; ++iteration) {
+		const double changeInIterate = fb * (b - a) / (fb - fa);
+		const double falsePosition = b - changeInIterate;
+		if (constexpr double tolerance = 1e-6; fabs(changeInIterate) < tolerance) {
+			return falsePosition;
+		}
+		if (const double fFalsePosition = f(falsePosition); fFalsePosition * fa < 0) {
+			b = falsePosition;
+			fb = fFalsePosition;
+			fa *= 0.5;
+		}
+		else {
+			a = falsePosition;
+			fa = fFalsePosition;
+			fb *= 0.5;
+		}
+	}
+	throw std::runtime_error("Density search failed to converge within the maximum number of iterations.");
 }
 
 double WaterSteamEquationOfState::CalculateRegion3ReducedTemperature(const double temperature)
