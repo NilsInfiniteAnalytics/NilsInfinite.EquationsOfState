@@ -36,8 +36,7 @@ void WaterSteamEquationOfState::SetDatabasePath(const std::string& path) {
 bool WaterSteamEquationOfState::GetCoefficients()
 {
 	sqlite3* db = nullptr;
-	const int rc = sqlite3_open(DatabasePath.c_str(), &db);
-	if (rc != SQLITE_OK) {
+	if (const int rc = sqlite3_open(DatabasePath.c_str(), &db); rc != SQLITE_OK) {
 		throw std::runtime_error("Can't open database: " + std::string(sqlite3_errmsg(db)));
 	}
 	try {
@@ -242,74 +241,102 @@ Region WaterSteamEquationOfState::DetermineRegion(const double temperature, cons
 
 #pragma region Array Compute Methods
 
+void WaterSteamEquationOfState::CalculateSpecificVolumeArray(
+	const double* temperatures,
+	const double* pressures,
+	double* specificVolumes,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, specificVolumes, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificVolume,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificVolume,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificVolume,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificVolume);
+}
+
+void WaterSteamEquationOfState::CalculateSpecificInternalEnergyArray(
+	const double* temperatures,
+	const double* pressures,
+	double* specificInternalEnergies,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, specificInternalEnergies, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificInternalEnergy,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificInternalEnergy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergy,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificInternalEnergy);
+}
+
 void WaterSteamEquationOfState::CalculateSpecificEnthalpyArray(
 	const double* temperatures,
 	const double* pressures,
 	double* enthalpies,
 	const size_t length) const
 {
-	for (size_t i = 0; i < length; i++)
-	{
-		const double temperature = temperatures[i];
-		const double pressure = pressures[i];
-		switch (DetermineRegion(temperature, pressure))
-		{
-		case SUBCOOLED_WATER:
-			enthalpies[i] = CalculateRegion1SpecificEnthalpy(temperature, pressure);
-			break;
-		case SUPERCRITICAL_WATER_STEAM:
-			enthalpies[i] = CalculateRegion2SpecificEnthalpy(temperature, pressure);
-			break;
-		case SUPERHEATED_STEAM:
-		{
-			const double density = CalculateRegion3Density(temperature, pressure);
-			enthalpies[i] = CalculateRegion3SpecificEnthalpy(temperature, density);
-		}
-		break;
-		case HIGH_TEMPERATURE_STEAM:
-			enthalpies[i] = CalculateRegion5SpecificEnthalpy(temperature, pressure);
-			break;
-		case SATURATION:
-		case INVALID:
-			enthalpies[i] = std::numeric_limits<double>::quiet_NaN();
-			break;
-		}
-	}
+	CalculatePropertyArray(
+		temperatures, pressures, enthalpies, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificEnthalpy,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificEnthalpy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpy,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificEnthalpy);
 }
 
 void WaterSteamEquationOfState::CalculateSpecificEntropyArray(
 	const double* temperatures,
 	const double* pressures,
-	double* enthalpies,
+	double* entropies,
 	const size_t length) const
 {
-	for (size_t i = 0; i < length; i++)
-	{
-		const double temperature = temperatures[i];
-		const double pressure = pressures[i];
-		switch (DetermineRegion(temperature, pressure))
-		{
-		case SUBCOOLED_WATER:
-			enthalpies[i] = CalculateRegion1SpecificEntropy(temperature, pressure);
-			break;
-		case SUPERCRITICAL_WATER_STEAM:
-			enthalpies[i] = CalculateRegion2SpecificEntropy(temperature, pressure);
-			break;
-		case SUPERHEATED_STEAM:
-		{
-			const double density = CalculateRegion3Density(temperature, pressure);
-			enthalpies[i] = CalculateRegion3SpecificEntropy(temperature, density);
-		}
-		break;
-		case HIGH_TEMPERATURE_STEAM:
-			enthalpies[i] = CalculateRegion5SpecificEntropy(temperature, pressure);
-			break;
-		case SATURATION:
-		case INVALID:
-			enthalpies[i] = std::numeric_limits<double>::quiet_NaN();
-			break;
-		}
-	}
+	CalculatePropertyArray(
+		temperatures, pressures, entropies, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificEntropy,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificEntropy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificEntropy,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificEntropy);
+}
+
+void WaterSteamEquationOfState::CalculateSpecificIsobaricHeatCapacityArray(
+	const double* temperatures,
+	const double* pressures,
+	double* specificHeatCapacities,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificIsobaricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificIsobaricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificIsobaricHeatCapacity);
+}
+
+void WaterSteamEquationOfState::CalculateSpecificIsochoricHeatCapacityArray(
+	const double* temperatures,
+	const double* pressures,
+	double* specificHeatCapacities,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpecificIsochoricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion2SpecificIsochoricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion5SpecificIsochoricHeatCapacity);
+}
+
+void WaterSteamEquationOfState::CalculateSpeedOfSoundArray(
+	const double* temperatures,
+	const double* pressures,
+	double* speedsOfSound,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, speedsOfSound, length,
+		&WaterSteamEquationOfState::CalculateRegion1SpeedOfSound,
+		&WaterSteamEquationOfState::CalculateRegion2SpeedOfSound,
+		&WaterSteamEquationOfState::CalculateRegion3SpeedOfSound,
+		&WaterSteamEquationOfState::CalculateRegion5SpeedOfSound);
 }
 
 #pragma endregion
@@ -874,6 +901,13 @@ double WaterSteamEquationOfState::CalculateRegion23BoundaryPressure(const double
 #pragma endregion
 
 #pragma region Region 3 Equations
+
+double WaterSteamEquationOfState::CalculateRegion3SpecificVolume(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	const double specificVolume = 1.0 / density;
+	return specificVolume;
+}
 
 double WaterSteamEquationOfState::CalculateRegion3Density(const double temperature, const double pressure) const
 {
@@ -1463,50 +1497,79 @@ WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterS
 	delete instance;
 }
 
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificVolumeArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* specificVolumes,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, specificVolumes, length,
+		&WaterSteamEquationOfState::CalculateSpecificVolumeArray);
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificInternalEnergyArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* specificInternalEnergies,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, specificInternalEnergies, length,
+		&WaterSteamEquationOfState::CalculateSpecificInternalEnergyArray);
+}
+
 WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEnthalpyArray(
-	WaterSteamEquationOfState* instance,
+	const WaterSteamEquationOfState* instance,
 	const double* temperatures,
 	const double* pressures,
 	double* enthalpies,
-	size_t length)
+	const size_t length)
 {
-	if (!instance)
-	{
-		return -1; // Invalid instance
-	}
-
-	try
-	{
-		instance->CalculateSpecificEnthalpyArray(temperatures, pressures, enthalpies, length);
-		return 0; // Success
-	}
-	catch (...)
-	{
-		// Handle exceptions
-		return -1; // Error
-	}
+	return CalculatePropertyArray(instance, temperatures, pressures, enthalpies, length,
+		&WaterSteamEquationOfState::CalculateSpecificEnthalpyArray);
 }
 
 WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEntropyArray(
-	WaterSteamEquationOfState* instance,
+	const WaterSteamEquationOfState* instance,
 	const double* temperatures,
 	const double* pressures,
 	double* entropies,
-	size_t length)
+	const size_t length)
 {
-	if (!instance)
-	{
-		return -1; // Invalid instance
-	}
+	return CalculatePropertyArray(instance, temperatures, pressures, entropies, length,
+		&WaterSteamEquationOfState::CalculateSpecificEntropyArray);
+}
 
-	try
-	{
-		instance->CalculateSpecificEntropyArray(temperatures, pressures, entropies, length);
-		return 0; // Success
-	}
-	catch (...)
-	{
-		// Handle exceptions
-		return -1; // Error
-	}
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsochoricHeatCapacityArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* specificHeatCapacities,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateSpecificIsochoricHeatCapacityArray);
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsobaricHeatCapacityArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* specificHeatCapacities,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateSpecificIsobaricHeatCapacityArray);
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateSpeedOfSoundArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* speedsOfSound,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, speedsOfSound, length,
+		&WaterSteamEquationOfState::CalculateSpeedOfSoundArray);
 }

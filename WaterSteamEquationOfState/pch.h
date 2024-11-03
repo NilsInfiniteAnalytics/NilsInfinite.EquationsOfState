@@ -12,8 +12,6 @@
 #include <cmath>
 #include <iostream>
 #include <ostream>
-#include <array>
-#include <string>
-#include <functional>
+
 
 #endif //PCH_H
