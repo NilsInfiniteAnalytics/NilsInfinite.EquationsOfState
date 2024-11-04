@@ -109,6 +109,8 @@ public:
 	static constexpr int NUMBER_OF_REGION5_COEFFICIENTS = 6;
 
 	[[nodiscard]] Region DetermineRegion(double temperature, double pressure) const;
+	void CalculateDensityArray(const double* temperatures, const double* pressures, double* densities,
+	                           size_t length) const;
 
 	template <typename RegionFunc1, typename RegionFunc2, typename RegionFunc3, typename RegionFunc5>
 	void CalculatePropertyArray(
@@ -132,8 +134,7 @@ public:
 				results[i] = (this->*region2Func)(temperature, pressure);
 				break;
 			case SUPERHEATED_STEAM: {
-				const double density = CalculateRegion3Density(temperature, pressure);
-				results[i] = (this->*region3Func)(temperature, density);
+				results[i] = (this->*region3Func)(temperature, pressure);
 				break;
 			}
 			case HIGH_TEMPERATURE_STEAM:
@@ -188,6 +189,7 @@ public:
 		const double* pressures,
 		double* speedsOfSound,
 		size_t length) const;
+	double CalculateRegion1Density(double temperature, double pressure) const;
 
 #pragma region REGION 1 METHOD SIGNATURES
 	[[nodiscard]] double CalculateRegion1SpecificVolume(double temperature, double pressure) const;
@@ -208,6 +210,7 @@ public:
 	[[nodiscard]] double CalculateFirstDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateSecondDerivativeDimensionlessGibbsFreeEnergyTemperatureRegion1(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateSecondMixedDerivativeDimensionlessGibbsFreeEnergyRegion1(double temperature, double pressure) const;
+	double CalculateRegion2Density(double temperature, double pressure) const;
 #pragma endregion
 
 #pragma region REGION 2 METHOD SIGNATURES
@@ -261,16 +264,23 @@ public:
 	[[nodiscard]] double CalculateRegion3SecondMixedDerivativeDimensionlessHelmholtzEnergyDensityTemperature(double temperature, double density) const;
 	[[nodiscard]] double CalculateRegion3Pressure(double temperature, double density) const;
 	[[nodiscard]] double CalculateRegion3SpecificInternalEnergy(double temperature, double density) const;
+	double CalculateRegion3SpecificInternalEnergyViaPressure(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateRegion3SpecificEntropy(double temperature, double density) const;
+	double CalculateRegion3SpecificEntropyViaPressure(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateRegion3SpecificEnthalpy(double temperature, double density) const;
+	double CalculateRegion3SpecificEnthalpyViaPressure(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateRegion3SpecificIsochoricHeatCapacity(double temperature, double density) const;
+	double CalculateRegion3SpecificIsochoricHeatCapacityViaPressure(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateRegion3SpecificIsobaricHeatCapacity(double temperature, double density) const;
+	double CalculateRegion3SpecificIsobaricHeatCapacityViaPressure(double temperature, double pressure) const;
 	[[nodiscard]] double CalculateRegion3SpeedOfSound(double temperature, double density) const;
+	double CalculateRegion3SpeedOfSoundViaPressure(double temperature, double pressure) const;
 #pragma endregion
 
 #pragma region REGION 4 METHOD SIGNATURES
 	[[nodiscard]] double CalculateRegion4SaturationPressure(double temperature) const;
 	[[nodiscard]] double CalculateRegion4SaturationTemperature(double pressure) const;
+	double CalculateRegion5Density(double temperature, double pressure) const;
 
 #pragma endregion
 
@@ -358,8 +368,6 @@ private:
 	std::array<Region25ResidualCoefficient, NUMBER_OF_REGION5_COEFFICIENTS> Region5ResidualCoefficients;
 };
 
-WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquationOfState(const char* databasePath);
-WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterSteamEquationOfState* instance);
 template <typename Func>
 int CalculatePropertyArray(
 	const WaterSteamEquationOfState* instance,
@@ -384,39 +392,56 @@ int CalculatePropertyArray(
 		return -1; // Error
 	}
 }
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificVolumeArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* specificVolumes,
-	size_t length);
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificInternalEnergyArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* specificInternalEnergies,
-	size_t length);
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEnthalpyArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* enthalpies,
-	size_t length);
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEntropyArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* entropies,
-	size_t length);
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsobaricHeatCapacityArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* specificHeatCapacities,
-	size_t length);
-WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsochoricHeatCapacityArray(
-	const WaterSteamEquationOfState* instance,
-	const double* temperatures,
-	const double* pressures,
-	double* specificHeatCapacities,
-	size_t length);
+
+extern "C" {
+	WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquationOfState(const char* databasePath);
+	WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterSteamEquationOfState* instance);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateDensityArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* densities,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificVolumeArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* specificVolumes,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificInternalEnergyArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* specificInternalEnergies,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEnthalpyArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* enthalpies,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificEntropyArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* entropies,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsobaricHeatCapacityArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* specificHeatCapacities,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificIsochoricHeatCapacityArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* specificHeatCapacities,
+		size_t length);
+	WATERSTEAMEQUATIONOFSTATE_API int CalculateSpeedOfSoundArray(
+		const WaterSteamEquationOfState* instance,
+		const double* temperatures,
+		const double* pressures,
+		double* speedsOfSound,
+		size_t length);
+}

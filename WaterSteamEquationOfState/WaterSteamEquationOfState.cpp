@@ -220,15 +220,14 @@ Region WaterSteamEquationOfState::DetermineRegion(const double temperature, cons
 			}
 			return SUPERCRITICAL_WATER_STEAM;
 		}
-		const double boundaryPressure = CalculateRegion23BoundaryPressure(temperature);
-		if (pressure > boundaryPressure)
+		if (const double boundaryPressure = CalculateRegion23BoundaryPressure(temperature); pressure > boundaryPressure)
 		{
 			return SUPERHEATED_STEAM;
 		}
 		return SUPERCRITICAL_WATER_STEAM;
 	}
 
-	if (temperature <= HIGH_TEMPERATURE_STEAM_LOWER_TEMPERATURE_LIMIT)
+	if (temperature >= HIGH_TEMPERATURE_STEAM_LOWER_TEMPERATURE_LIMIT)
 	{
 		if (pressure > HIGH_TEMPERATURE_STEAM_UPPER_PRESSURE_LIMIT)
 		{
@@ -240,6 +239,20 @@ Region WaterSteamEquationOfState::DetermineRegion(const double temperature, cons
 }
 
 #pragma region Array Compute Methods
+
+void WaterSteamEquationOfState::CalculateDensityArray(
+	const double* temperatures,
+	const double* pressures,
+	double* densities,
+	const size_t length) const
+{
+	CalculatePropertyArray(
+		temperatures, pressures, densities, length,
+		&WaterSteamEquationOfState::CalculateRegion1Density,
+		&WaterSteamEquationOfState::CalculateRegion2Density,
+		&WaterSteamEquationOfState::CalculateRegion3Density,
+		&WaterSteamEquationOfState::CalculateRegion5Density);
+}
 
 void WaterSteamEquationOfState::CalculateSpecificVolumeArray(
 	const double* temperatures,
@@ -265,7 +278,7 @@ void WaterSteamEquationOfState::CalculateSpecificInternalEnergyArray(
 		temperatures, pressures, specificInternalEnergies, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificInternalEnergy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificInternalEnergy,
-		&WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergyViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpecificInternalEnergy);
 }
 
@@ -279,7 +292,7 @@ void WaterSteamEquationOfState::CalculateSpecificEnthalpyArray(
 		temperatures, pressures, enthalpies, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificEnthalpy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificEnthalpy,
-		&WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpyViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpecificEnthalpy);
 }
 
@@ -293,7 +306,7 @@ void WaterSteamEquationOfState::CalculateSpecificEntropyArray(
 		temperatures, pressures, entropies, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificEntropy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificEntropy,
-		&WaterSteamEquationOfState::CalculateRegion3SpecificEntropy,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificEntropyViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpecificEntropy);
 }
 
@@ -307,7 +320,7 @@ void WaterSteamEquationOfState::CalculateSpecificIsobaricHeatCapacityArray(
 		temperatures, pressures, specificHeatCapacities, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificIsobaricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificIsobaricHeatCapacity,
-		&WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacityViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpecificIsobaricHeatCapacity);
 }
 
@@ -321,7 +334,7 @@ void WaterSteamEquationOfState::CalculateSpecificIsochoricHeatCapacityArray(
 		temperatures, pressures, specificHeatCapacities, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificIsochoricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificIsochoricHeatCapacity,
-		&WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacity,
+		&WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacityViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpecificIsochoricHeatCapacity);
 }
 
@@ -335,13 +348,20 @@ void WaterSteamEquationOfState::CalculateSpeedOfSoundArray(
 		temperatures, pressures, speedsOfSound, length,
 		&WaterSteamEquationOfState::CalculateRegion1SpeedOfSound,
 		&WaterSteamEquationOfState::CalculateRegion2SpeedOfSound,
-		&WaterSteamEquationOfState::CalculateRegion3SpeedOfSound,
+		&WaterSteamEquationOfState::CalculateRegion3SpeedOfSoundViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpeedOfSound);
 }
 
 #pragma endregion
 
 #pragma region Region 1 Equations
+
+double WaterSteamEquationOfState::CalculateRegion1Density(const double temperature, const double pressure) const
+{
+	const double specificVolume = CalculateRegion1SpecificVolume(temperature, pressure);
+	const double density = 1.0 / specificVolume;
+	return density;
+}
 
 double WaterSteamEquationOfState::CalculateRegion1ReciprocalReducedPressure(const double pressure)
 {
@@ -558,6 +578,13 @@ double WaterSteamEquationOfState::CalculateSecondMixedDerivativeDimensionlessGib
 #pragma endregion
 
 #pragma region Region 2 Equations
+
+double WaterSteamEquationOfState::CalculateRegion2Density(const double temperature, const double pressure) const
+{
+	const double specificVolume = CalculateRegion2SpecificVolume(temperature, pressure);
+	const double density = 1.0 / specificVolume;
+	return density;
+}
 
 double WaterSteamEquationOfState::CalculateRegion2SpecificVolume(const double temperature, const double pressure) const
 {
@@ -949,6 +976,7 @@ double WaterSteamEquationOfState::CalculateRegion3Density(const double temperatu
 	throw std::runtime_error("Density search failed to converge within the maximum number of iterations.");
 }
 
+
 double WaterSteamEquationOfState::CalculateRegion3ReducedTemperature(const double temperature)
 {
 	return temperature / CRITICAL_TEMPERATURE;
@@ -1092,12 +1120,24 @@ double WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergy(const d
 	return helmholtzFirstDerivativeTemperature * temperature * SPECIFIC_GAS_CONSTANT * reciprocalReducedTemperature;
 }
 
+double WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergyViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpecificInternalEnergy(temperature, density);
+}
+
 double WaterSteamEquationOfState::CalculateRegion3SpecificEntropy(const double temperature, const double density) const
 {
 	const double reciprocalReducedTemperature = CalculateRegion3ReciprocalReducedTemperature(temperature);
 	const double dimensionlessHelmholtzEnergy = CalculateRegion3DimensionlessHelmholtzEnergy(temperature, density);
 	const double helmholtzFirstDerivativeTemperature = CalculateRegion3FirstDerivativeDimensionlessHelmholtzEnergyTemperature(temperature, density);
 	return (reciprocalReducedTemperature * helmholtzFirstDerivativeTemperature - dimensionlessHelmholtzEnergy) * SPECIFIC_GAS_CONSTANT;
+}
+
+double WaterSteamEquationOfState::CalculateRegion3SpecificEntropyViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpecificEntropy(temperature, density);
 }
 
 double WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpy(const double temperature, const double density) const
@@ -1111,11 +1151,23 @@ double WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpy(const double 
 	return SPECIFIC_GAS_CONSTANT * temperature * (term1 + term2);
 }
 
+double WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpyViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpecificEnthalpy(temperature, density);
+}
+
 double WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacity(const double temperature, const double density) const
 {
 	const double reciprocalReducedTemperature = CalculateRegion3ReciprocalReducedTemperature(temperature);
 	const double secondDerivativeHelmholtzTemperature = CalculateRegion3SecondDerivativeDimensionlessHelmholtzEnergyTemperature(temperature, density);
 	return -1.0 * SPECIFIC_GAS_CONSTANT * pow(reciprocalReducedTemperature, 2.0) * secondDerivativeHelmholtzTemperature;
+}
+
+double WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacityViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpecificIsochoricHeatCapacity(temperature, density);
 }
 
 double WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacity(const double temperature, const double density) const
@@ -1131,6 +1183,12 @@ double WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacity(c
 	const double denominator = 2.0 * reducedDensity * firstDerivativeHelmholtzDensity + pow(reducedDensity, 2.0) * secondDerivativeHelmholtzDensity;
 	const double specificIsochoricHeatCapacity = CalculateRegion3SpecificIsochoricHeatCapacity(temperature, density);
 	return specificIsochoricHeatCapacity + SPECIFIC_GAS_CONSTANT * (numeratorSquared / denominator);
+}
+
+double WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacityViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpecificIsobaricHeatCapacity(temperature, density);
 }
 
 double WaterSteamEquationOfState::CalculateRegion3SpeedOfSound(const double temperature, const double density) const
@@ -1151,7 +1209,12 @@ double WaterSteamEquationOfState::CalculateRegion3SpeedOfSound(const double temp
 		- numeratorSquared / denominator;
 	const double speedOfSoundSquared = SPECIFIC_GAS_CONSTANT * temperature * rootedDimensionlessSpeed * 1000;
 	return sqrt(speedOfSoundSquared);
+}
 
+double WaterSteamEquationOfState::CalculateRegion3SpeedOfSoundViaPressure(const double temperature, const double pressure) const
+{
+	const double density = CalculateRegion3Density(temperature, pressure);
+	return CalculateRegion3SpeedOfSound(temperature, density);
 }
 
 #pragma endregion
@@ -1206,6 +1269,13 @@ double WaterSteamEquationOfState::CalculateRegion4SaturationTemperature(const do
 #pragma endregion
 
 #pragma region Region 5 Equations
+
+double WaterSteamEquationOfState::CalculateRegion5Density(const double temperature, const double pressure) const
+{
+	const double specificVolume = CalculateRegion5SpecificVolume(temperature, pressure);
+	const double density = 1.0 / specificVolume;
+	return density;
+}
 
 double WaterSteamEquationOfState::CalculateRegion5SpecificVolume(const double temperature, const double pressure) const
 {
@@ -1495,6 +1565,17 @@ WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquatio
 WATERSTEAMEQUATIONOFSTATE_API void DestroyWaterSteamEquationOfState(const WaterSteamEquationOfState* instance)
 {
 	delete instance;
+}
+
+WATERSTEAMEQUATIONOFSTATE_API int CalculateDensityArray(
+	const WaterSteamEquationOfState* instance,
+	const double* temperatures,
+	const double* pressures,
+	double* densities,
+	const size_t length)
+{
+	return CalculatePropertyArray(instance, temperatures, pressures, densities, length,
+		&WaterSteamEquationOfState::CalculateDensityArray);
 }
 
 WATERSTEAMEQUATIONOFSTATE_API int CalculateSpecificVolumeArray(
