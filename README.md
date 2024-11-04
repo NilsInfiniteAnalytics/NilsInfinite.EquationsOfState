@@ -58,6 +58,7 @@ For detailed information about the IAPWS-IF97 formulation, please refer to the [
 
 ## **Usage**
 - Requires the setup of a SQLite database containing the coefficients and correct table names. This will be adjusted in the future. Check my wrapper project for examples of setup in a C# project with P/Invoke.
+- Check out [My other repo](https://github.com/NilsInfiniteAnalytics/NilsInfinite.EquationOfStateViewer) for a simple P/Invoke implementation.
 
 ## **Dependencies**
 - **SQLite3:** The implementation uses the SQLite3 library for storing and retrieving the coefficients for the equations. The library is included in the project and does not require external installation. However, feel free to visit the [SQLite website](https://www.sqlite.org/index.html) for more information.
