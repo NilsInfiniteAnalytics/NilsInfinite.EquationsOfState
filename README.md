@@ -73,4 +73,4 @@ For detailed information about the IAPWS-IF97 formulation, please refer to the [
 - **MIT License**
 
 ## **Acknowledgments**
-- **IAPWS:** For providing the official formulation and standards for water and steam properties. [IAPWS Website](https://iapws.org/)]
+- **IAPWS:** For providing the official formulation and standards for water and steam properties. [IAPWS Website](https://iapws.org/)
