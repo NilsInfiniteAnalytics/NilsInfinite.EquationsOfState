@@ -5,6 +5,11 @@ extern "C" {
 }
 
 WaterSteamEquationOfState::WaterSteamEquationOfState(const std::string& databasePath) :
+	IceSublimationCoefficients{},
+	IceComplexFunctionCoefficients{},
+	IceRealResidualGibbsCoefficients{},
+	IceComplexConstantsT{},
+	IceComplexConstantsR{},
 	Region1Coefficients{},
 	Region2IdealCoefficients{},
 	Region2ResidualCoefficients{},
@@ -18,13 +23,13 @@ WaterSteamEquationOfState::WaterSteamEquationOfState(const std::string& database
 		throw std::invalid_argument("Database path cannot be empty.");
 	}
 	SetDatabasePath(databasePath);
-	const bool success = GetCoefficients();
-	if (!success) {
+	if (const bool success = GetCoefficients(); !success) {
 		throw std::runtime_error("Failed to load coefficients from the database.");
 	}
 }
 
 #pragma region Setup Methods
+
 std::string WaterSteamEquationOfState::GetDatabasePath() const {
 	return DatabasePath;
 }
@@ -48,6 +53,11 @@ bool WaterSteamEquationOfState::GetCoefficients()
 		LoadRegion4Coefficients(db);
 		LoadRegion5IdealCoefficients(db);
 		LoadRegion5ResidualCoefficients(db);
+		LoadIceRealGibbsCoefficients(db);
+		LoadIceComplexFunctionCoefficients(db);
+		LoadIceComplexConstantsT(db);
+		LoadIceComplexConstantsR(db);
+		LoadIceSublimationCoefficients(db);
 		return true;
 	}
 	catch (...) {
@@ -177,10 +187,97 @@ void WaterSteamEquationOfState::LoadRegion5ResidualCoefficients(sqlite3* db)
 			return Region25ResidualCoefficient{ index, ii, ji, niBase, niExponent };
 		});
 }
+
+void WaterSteamEquationOfState::LoadIceRealGibbsCoefficients(sqlite3* db)
+{
+	this->LoadCoefficients<IceRealCoefficient, NUMBER_OF_ICE_REAL_GIBBS_COEFFICIENTS>(
+		db,
+		ICE_REAL_GIBBS_CONSTANTS,
+		IceRealResidualGibbsCoefficients,
+		[](sqlite3_stmt* stmt) -> IceRealCoefficient {
+			const int index = sqlite3_column_int(stmt, 0);
+			const double realBase = sqlite3_column_double(stmt, 1);
+			const int realExponent = sqlite3_column_int(stmt, 2);
+			return IceRealCoefficient{ index, realBase, realExponent };
+		});
+}
+
+void WaterSteamEquationOfState::LoadIceComplexFunctionCoefficients(sqlite3* db)
+{
+	this->LoadCoefficients<IceComplexCoefficient, NUMBER_OF_ICE_COMPLEX_FUNCTION_COEFFICIENTS>(
+		db,
+		ICE_COMPLEX_FUNCTION_COEFFICIENTS,
+		IceComplexFunctionCoefficients,
+		[](sqlite3_stmt* stmt) -> IceComplexCoefficient {
+			const int index = sqlite3_column_int(stmt, 0);
+			const double realBase = sqlite3_column_double(stmt, 1);
+			const int realExponent = sqlite3_column_int(stmt, 2);
+			const double imaginaryBase = sqlite3_column_double(stmt, 3);
+			const int imaginaryExponent = sqlite3_column_int(stmt, 4);
+			return IceComplexCoefficient{ index, realBase, realExponent, imaginaryBase, imaginaryExponent };
+		});
+}
+
+void WaterSteamEquationOfState::LoadIceComplexConstantsT(sqlite3* db)
+{
+	this->LoadCoefficients<IceComplexCoefficient, NUMBER_OF_ICE_COMPLEX_CONSTANTS_T>(
+		db,
+		ICE_COMPLEX_CONSTANTS_T_TABLE_NAME,
+		IceComplexConstantsT,
+		[](sqlite3_stmt* stmt) -> IceComplexCoefficient {
+			const int index = sqlite3_column_int(stmt, 0);
+			const double realBase = sqlite3_column_double(stmt, 1);
+			const int realExponent = sqlite3_column_int(stmt, 2);
+			const double imaginaryBase = sqlite3_column_double(stmt, 3);
+			const int imaginaryExponent = sqlite3_column_int(stmt, 4);
+			return IceComplexCoefficient{ index, realBase, realExponent, imaginaryBase, imaginaryExponent };
+		});
+}
+
+void WaterSteamEquationOfState::LoadIceComplexConstantsR(sqlite3* db)
+{
+	this->LoadCoefficients<IceComplexCoefficient, NUMBER_OF_ICE_COMPLEX_CONSTANTS_R>(
+		db,
+		ICE_COMPLEX_CONSTANT_R_TABLE_NAME,
+		IceComplexConstantsR,
+		[](sqlite3_stmt* stmt) -> IceComplexCoefficient {
+			const int index = sqlite3_column_int(stmt, 0);
+			const double realBase = sqlite3_column_double(stmt, 1);
+			const int realExponent = sqlite3_column_int(stmt, 2);
+			const double imaginaryBase = sqlite3_column_double(stmt, 3);
+			const int imaginaryExponent = sqlite3_column_int(stmt, 4);
+			return IceComplexCoefficient{ index, realBase, realExponent, imaginaryBase, imaginaryExponent };
+		});
+}
+
+void WaterSteamEquationOfState::LoadIceSublimationCoefficients(sqlite3* db)
+{
+	this->LoadCoefficients<IceSublimationCoefficient, NUMBER_OF_ICE_SUBLIMATION_COEFFICIENTS>(
+		db,
+		ICE_SUBLIMATION_COEFFICIENTS_TABLE_NAME,
+		IceSublimationCoefficients,
+		[](sqlite3_stmt* stmt) -> IceSublimationCoefficient {
+			const int index = sqlite3_column_int(stmt, 0);
+			const double aiBase = sqlite3_column_double(stmt, 1);
+			const int aiExponent = sqlite3_column_int(stmt, 2);
+			const double biBase = sqlite3_column_double(stmt, 3);
+			const int biExponent = sqlite3_column_int(stmt, 4);
+			return IceSublimationCoefficient{ index, aiBase, aiExponent, biBase, biExponent };
+		});
+}
+
 #pragma endregion
 
 Region WaterSteamEquationOfState::DetermineRegion(const double temperature, const double pressure) const
 {
+	if (temperature < TRIPLE_POINT_TEMPERATURE)
+	{
+		if (const double iceSublimationPressure = CalculateIceSublimationPressure(temperature); pressure < iceSublimationPressure)
+		{
+			return ICE;
+		}
+		return SUPERCRITICAL_WATER_STEAM;
+	}
 	if (temperature > HIGH_TEMPERATURE_STEAM_UPPER_TEMPERATURE_LIMIT)
 	{
 		return INVALID;
@@ -248,6 +345,7 @@ void WaterSteamEquationOfState::CalculateDensityArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, densities, length,
+		&WaterSteamEquationOfState::CalculateIceDensity,
 		&WaterSteamEquationOfState::CalculateRegion1Density,
 		&WaterSteamEquationOfState::CalculateRegion2Density,
 		&WaterSteamEquationOfState::CalculateRegion3Density,
@@ -262,6 +360,7 @@ void WaterSteamEquationOfState::CalculateSpecificVolumeArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, specificVolumes, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificVolume,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificVolume,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificVolume,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificVolume,
@@ -276,6 +375,7 @@ void WaterSteamEquationOfState::CalculateSpecificInternalEnergyArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, specificInternalEnergies, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificInternalEnergy,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificInternalEnergy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificInternalEnergy,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificInternalEnergyViaPressure,
@@ -290,6 +390,7 @@ void WaterSteamEquationOfState::CalculateSpecificEnthalpyArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, enthalpies, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificEnthalpy,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificEnthalpy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificEnthalpy,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificEnthalpyViaPressure,
@@ -304,6 +405,7 @@ void WaterSteamEquationOfState::CalculateSpecificEntropyArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, entropies, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificEntropy,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificEntropy,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificEntropy,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificEntropyViaPressure,
@@ -318,6 +420,7 @@ void WaterSteamEquationOfState::CalculateSpecificIsobaricHeatCapacityArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificIsobaricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificIsobaricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificIsobaricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificIsobaricHeatCapacityViaPressure,
@@ -332,6 +435,7 @@ void WaterSteamEquationOfState::CalculateSpecificIsochoricHeatCapacityArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, specificHeatCapacities, length,
+		&WaterSteamEquationOfState::CalculateIceSpecificIsochoricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion1SpecificIsochoricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion2SpecificIsochoricHeatCapacity,
 		&WaterSteamEquationOfState::CalculateRegion3SpecificIsochoricHeatCapacityViaPressure,
@@ -346,10 +450,393 @@ void WaterSteamEquationOfState::CalculateSpeedOfSoundArray(
 {
 	CalculatePropertyArray(
 		temperatures, pressures, speedsOfSound, length,
+		&WaterSteamEquationOfState::CalculateIceSpeedOfSound,
 		&WaterSteamEquationOfState::CalculateRegion1SpeedOfSound,
 		&WaterSteamEquationOfState::CalculateRegion2SpeedOfSound,
 		&WaterSteamEquationOfState::CalculateRegion3SpeedOfSoundViaPressure,
 		&WaterSteamEquationOfState::CalculateRegion5SpeedOfSound);
+}
+
+#pragma endregion
+
+#pragma region Ice Region Methods
+
+double WaterSteamEquationOfState::CalculateIceSpeedOfSound(const double temperature, const double pressure) const
+{
+	const double density = CalculateIceDensity(temperature, pressure);
+	const double isentropicCompressibility = CalculateIceIsentropicCompressibility(temperature, pressure);
+	const double speedOfSound = sqrt(isentropicCompressibility / density);
+	return speedOfSound;
+}
+
+double WaterSteamEquationOfState::CalculateIceSublimationPressure(const double temperature) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	double summationTerm = 0.0;
+	for (int i = 0; i < NUMBER_OF_ICE_SUBLIMATION_COEFFICIENTS; i++)
+	{
+		const double ai = IceSublimationCoefficients[i].AiBase * pow(10.0, IceSublimationCoefficients[i].AiExponent);
+		const double bi = IceSublimationCoefficients[i].BiBase * pow(10.0, IceSublimationCoefficients[i].BiExponent);
+		const double temperatureTerm = pow(reducedTemperature, bi);
+		summationTerm += ai * temperatureTerm;
+	}
+	const double exponentTerm = exp(summationTerm / reducedTemperature);
+	const double sublimationPressure = exponentTerm * TRIPLE_POINT_PRESSURE;
+	return sublimationPressure;
+}
+
+double WaterSteamEquationOfState::GetIceResidualGibbsCoefficient(const int index) const
+{
+	if (index < 0 || index >= NUMBER_OF_ICE_REAL_GIBBS_COEFFICIENTS)
+	{
+		throw std::invalid_argument("Index is out of range.");
+	}
+	return IceRealResidualGibbsCoefficients[index].RealBase * pow(10.0, IceRealResidualGibbsCoefficients[index].RealExponent);
+}
+
+std::complex<double> WaterSteamEquationOfState::GetIceComplexConstantT(const int index) const
+{
+	const double real = IceComplexConstantsT[index].RealBase * pow(10.0, IceComplexConstantsT[index].RealExponent);
+	const double imaginary = IceComplexConstantsT[index].ImaginaryBase * pow(10.0, IceComplexConstantsT[index].ImaginaryExponent);
+	const std::complex coefficient(real, imaginary);
+	return coefficient;
+}
+
+std::complex<double> WaterSteamEquationOfState::GetIceComplexFunctionConstantR(const int index) const
+{
+	const double real = IceComplexFunctionCoefficients[index].RealBase * pow(10.0, IceComplexFunctionCoefficients[index].RealExponent);
+	const double imaginary = IceComplexFunctionCoefficients[index].ImaginaryBase * pow(10.0, IceComplexFunctionCoefficients[index].ImaginaryExponent);
+	const std::complex coefficient(real, imaginary);
+	return coefficient;
+}
+
+std::complex<double> WaterSteamEquationOfState::GetIceComplexCoefficientR(const int index) const
+{
+	const double real = IceComplexConstantsR[index].RealBase * pow(10.0, IceComplexConstantsR[index].RealExponent);
+	const double imaginary = IceComplexConstantsR[index].ImaginaryBase * pow(10.0, IceComplexConstantsR[index].ImaginaryExponent);
+	const std::complex coefficient(real, imaginary);
+	return coefficient;
+}
+
+double WaterSteamEquationOfState::CalculateIceReducedPressure(const double pressure)
+{
+	return pressure / TRIPLE_POINT_PRESSURE;
+}
+
+double WaterSteamEquationOfState::CalculateIceReducedTemperature(const double temperature)
+{
+	return temperature / TRIPLE_POINT_TEMPERATURE;
+}
+
+double WaterSteamEquationOfState::CalculateIceResidualGibbsEnergy(const double pressure) const
+{
+	const double reducedPressure = CalculateIceReducedPressure(pressure);
+	double residualGibbsEnergy = 0.0;
+	const double pressureOffset = reducedPressure - ICE_EXPERIMENTAL_REDUCED_NORMAL_PRESSURE;
+	for (int k = 0; k < NUMBER_OF_ICE_REAL_GIBBS_COEFFICIENTS; k++) {
+		const double pressureTerm = pow(pressureOffset, k);
+		const double coefficient = IceRealResidualGibbsCoefficients[k].RealBase * pow(10.0, IceRealResidualGibbsCoefficients[k].RealExponent * 1.0);
+		residualGibbsEnergy += coefficient * pressureTerm;
+	}
+	return residualGibbsEnergy;
+}
+
+double WaterSteamEquationOfState::CalculateFirstDerivativeIceResidualGibbsEnergyPressure(const double pressure) const
+{
+	const double reducedPressure = CalculateIceReducedPressure(pressure);
+	double firstDerivativeResidualGibbsEnergy = 0.0;
+	const double pressureOffset = reducedPressure - ICE_EXPERIMENTAL_REDUCED_NORMAL_PRESSURE;
+	for (int k = 1; k < NUMBER_OF_ICE_REAL_GIBBS_COEFFICIENTS; k++) {
+		const double pressureTerm = pow(pressureOffset, k - 1.0);
+		const double coefficient = IceRealResidualGibbsCoefficients[k].RealBase * pow(10.0, IceRealResidualGibbsCoefficients[k].RealExponent * 1.0);
+		firstDerivativeResidualGibbsEnergy += coefficient * (k / TRIPLE_POINT_PRESSURE_PASCALS) * pressureTerm;
+	}
+	return firstDerivativeResidualGibbsEnergy;
+}
+
+double WaterSteamEquationOfState::CalculateSecondDerivativeIceResidualGibbsEnergyPressure(const double pressure) const
+{
+	const double reducedPressure = CalculateIceReducedPressure(pressure);
+	double secondDerivativeResidualGibbsEnergy = 0.0;
+	const double pressureOffset = reducedPressure - ICE_EXPERIMENTAL_REDUCED_NORMAL_PRESSURE;
+	for (int k = 2; k < NUMBER_OF_ICE_REAL_GIBBS_COEFFICIENTS; k++) {
+		const double pressureTerm = pow(pressureOffset, k - 2.0);
+		const double coefficient = IceRealResidualGibbsCoefficients[k].RealBase * pow(10.0, IceRealResidualGibbsCoefficients[k].RealExponent * 1.0);
+		secondDerivativeResidualGibbsEnergy += coefficient * (k * (k - 1.0) / (TRIPLE_POINT_PRESSURE_PASCALS * TRIPLE_POINT_PRESSURE_PASCALS)) * pressureTerm;
+	}
+	return secondDerivativeResidualGibbsEnergy;
+}
+
+std::complex<double> WaterSteamEquationOfState::CalculateIceResidualFunctionCoefficient(const double pressure) const
+{
+	const double reducedPressure = CalculateIceReducedPressure(pressure);
+	std::complex residualFunctionCoefficient = 0.0;
+	const double pressureOffset = reducedPressure - ICE_EXPERIMENTAL_REDUCED_NORMAL_PRESSURE;
+	for (int k = 0; k < NUMBER_OF_ICE_COMPLEX_FUNCTION_COEFFICIENTS; k++)
+	{
+		const double pressureTerm = pow(pressureOffset, k);
+		const std::complex<double> coefficient = GetIceComplexFunctionConstantR(k);
+		residualFunctionCoefficient += coefficient * pressureTerm;
+	}
+	return residualFunctionCoefficient;
+}
+
+std::complex<double> WaterSteamEquationOfState::CalculateFirstDerivativeIceResidualFunctionCoefficientPressure(const double pressure) const
+{
+	const double reducedPressure = CalculateIceReducedPressure(pressure);
+	std::complex residualFunctionCoefficient = 0.0;
+	const double pressureOffset = reducedPressure - ICE_EXPERIMENTAL_REDUCED_NORMAL_PRESSURE;
+	for (int k = 1; k < NUMBER_OF_ICE_COMPLEX_FUNCTION_COEFFICIENTS; k++)
+	{
+		const double pressureTerm = pow(pressureOffset, k - 1.0);
+		const std::complex<double> coefficient = GetIceComplexFunctionConstantR(k);
+		residualFunctionCoefficient += coefficient * (k / TRIPLE_POINT_PRESSURE_PASCALS) * pressureTerm;
+	}
+	return residualFunctionCoefficient;
+}
+
+auto WaterSteamEquationOfState::CalculateSecondDerivativeIceResidualFunctionCoefficientPressure() const -> std::complex<double>
+{
+	const std::complex<double> coefficient = GetIceComplexFunctionConstantR(2);
+	const std::complex residualFunctionCoefficient = coefficient * 2.0 / (TRIPLE_POINT_PRESSURE_PASCALS * TRIPLE_POINT_PRESSURE_PASCALS);
+	return residualFunctionCoefficient;
+}
+
+double WaterSteamEquationOfState::CalculateIceFirstDerivativeGibbsFreeEnergyTemperature(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	constexpr double entropyTerm = -1.0 * ICE_ZERO_POINT_ENTROPY_IAPWS95;
+	const std::complex<double> r2 = CalculateIceResidualFunctionCoefficient(pressure);
+	std::complex summation = 0.0;
+	for (int i = 0; i < 2; i++)
+	{
+		const std::complex tCoefficient = GetIceComplexConstantT(i);
+		const std::complex tTerm1 = tCoefficient - reducedTemperature;
+		const std::complex tTerm2 = tCoefficient + reducedTemperature;
+		const std::complex term1 = -1.0 * log(tTerm1);
+		const std::complex term2 = log(tTerm2);
+		const std::complex term3 = 2.0 * reducedTemperature / tCoefficient;
+		const std::complex termSum = term1 + term2 - term3;
+		if (i == 0)
+		{
+			const double r1Real = IceComplexConstantsR[i].RealBase * pow(10.0, IceComplexConstantsR[i].RealExponent);
+			const double r1Imaginary = IceComplexConstantsR[i].ImaginaryBase * pow(10.0, IceComplexConstantsR[i].ImaginaryExponent);
+			const std::complex r1Coefficient(r1Real, r1Imaginary);
+			const std::complex r1Term = r1Coefficient * termSum;
+			summation += r1Term;
+		}
+		else
+		{
+			const std::complex r2Term = r2 * termSum;
+			summation += r2Term;
+		}
+	}
+	const double firstDerivativeGibbs = entropyTerm + summation.real();
+	return firstDerivativeGibbs;
+}
+
+double WaterSteamEquationOfState::CalculateIceFirstDerivativeGibbsFreeEnergyPressure(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	const double firstDerivativePressureGibbsResidual = CalculateFirstDerivativeIceResidualGibbsEnergyPressure(pressure);
+	const std::complex<double> firstDerivativePressureResidualFunctionCoefficient = CalculateFirstDerivativeIceResidualFunctionCoefficientPressure(pressure);
+	const std::complex<double> t2 = GetIceComplexConstantT(1);
+	const std::complex<double> tTerm1 = t2 - reducedTemperature;
+	const std::complex<double> tTerm2 = t2 + reducedTemperature;
+	const std::complex<double> term1 = tTerm1 * log(tTerm1);
+	const std::complex<double> term2 = tTerm2 * log(tTerm2);
+	const std::complex<double> term3 = 2.0 * t2 * log(t2);
+	const std::complex<double> term4 = pow(reducedTemperature, 2.0) / t2;
+	const std::complex<double> termSum = term1 + term2 - term3 - term4;
+	const double triplePointTemperatureTerm = TRIPLE_POINT_TEMPERATURE * (firstDerivativePressureResidualFunctionCoefficient * termSum).real();
+	return firstDerivativePressureGibbsResidual + triplePointTemperatureTerm;
+}
+
+double WaterSteamEquationOfState::CalculateIceSecondDerivativeGibbsFreeEnergyPressure(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	const double secondDerivativePressureGibbsResidual = CalculateSecondDerivativeIceResidualGibbsEnergyPressure(pressure);
+	const std::complex<double> secondDerivativePressureResidualFunctionConstant = CalculateSecondDerivativeIceResidualFunctionCoefficientPressure();
+	const std::complex<double> t2 = GetIceComplexConstantT(1);
+	const std::complex<double> tTerm1 = t2 - reducedTemperature;
+	const std::complex<double> tTerm2 = t2 + reducedTemperature;
+	const std::complex<double> term1 = tTerm1 * log(tTerm1);
+	const std::complex<double> term2 = tTerm2 * log(tTerm2);
+	const std::complex<double> term3 = 2.0 * t2 * log(t2);
+	const std::complex<double> term4 = pow(reducedTemperature, 2.0) / t2;
+	const std::complex<double> termSum = term1 + term2 - term3 - term4;
+	const double triplePointTemperatureTerm = TRIPLE_POINT_TEMPERATURE * (secondDerivativePressureResidualFunctionConstant * termSum).real();
+	return secondDerivativePressureGibbsResidual + triplePointTemperatureTerm;
+}
+
+double WaterSteamEquationOfState::CalculateIceSecondDerivativeGibbsFreeEnergyTemperature(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	const std::complex<double> r2 = CalculateIceResidualFunctionCoefficient(pressure);
+	std::complex summation = 0.0;
+	for (int i = 0; i < 2; i++)
+	{
+		const std::complex tCoefficient = GetIceComplexConstantT(i);
+		const std::complex tTerm1 = tCoefficient - reducedTemperature;
+		const std::complex tTerm2 = tCoefficient + reducedTemperature;
+		const std::complex term1 = 1.0 / tTerm1;
+		const std::complex term2 = 1.0 / tTerm2;
+		const std::complex term3 = 2.0 / tCoefficient;
+		const std::complex termSum = term1 + term2 - term3;
+		if (i == 0)
+		{
+			const double r1Real = IceComplexConstantsR[i].RealBase * pow(10.0, IceComplexConstantsR[i].RealExponent);
+			const double r1Imaginary = IceComplexConstantsR[i].ImaginaryBase * pow(10.0, IceComplexConstantsR[i].ImaginaryExponent);
+			const std::complex r1Coefficient(r1Real, r1Imaginary);
+			const std::complex r1Term = r1Coefficient * termSum;
+			summation += r1Term;
+		}
+		else
+		{
+			const std::complex r2Term = r2 * termSum;
+			summation += r2Term;
+		}
+	}
+	const double firstDerivativeGibbs = summation.real() / TRIPLE_POINT_TEMPERATURE;
+	return firstDerivativeGibbs;
+}
+
+double WaterSteamEquationOfState::CalculateIceSecondMixedDerivativeGibbsFreeEnergyTemperaturePressure(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	const std::complex<double> firstDerivativePressureResidualFunctionConstant = CalculateFirstDerivativeIceResidualFunctionCoefficientPressure(pressure);
+	const std::complex<double> t2 = GetIceComplexConstantT(1);
+	const std::complex<double> tTerm1 = t2 - reducedTemperature;
+	const std::complex<double> tTerm2 = t2 + reducedTemperature;
+	const std::complex<double> term1 = -1.0 * log(tTerm1);
+	const std::complex<double> term2 = log(tTerm2);
+	const std::complex<double> term3 = 2.0 * reducedTemperature / t2;
+	const std::complex<double> termSum = term1 + term2 - term3;
+	return (firstDerivativePressureResidualFunctionConstant * termSum).real();
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificGibbsFreeEnergy(const double temperature, const double pressure) const
+{
+	const double reducedTemperature = CalculateIceReducedTemperature(temperature);
+	const double residualGibbsEnergy = CalculateIceResidualGibbsEnergy(pressure);
+	const double entropyTerm = -1.0 * ICE_ZERO_POINT_ENTROPY_IAPWS95 * TRIPLE_POINT_TEMPERATURE * reducedTemperature;
+	const std::complex<double> r2 = CalculateIceResidualFunctionCoefficient(pressure);
+	std::complex summation = 0.0;
+	for (int i = 0; i < 2; i++)
+	{
+		const double tReal = IceComplexConstantsT[i].RealBase * pow(10.0, IceComplexConstantsT[i].RealExponent);
+		const double tImaginary = IceComplexConstantsT[i].ImaginaryBase * pow(10.0, IceComplexConstantsT[i].ImaginaryExponent);
+		const std::complex tCoefficient(tReal, tImaginary);
+		const std::complex tTerm1 = tCoefficient - reducedTemperature;
+		const std::complex tTerm2 = tCoefficient + reducedTemperature;
+		const std::complex term1 = tTerm1 * log(tTerm1);
+		const std::complex term2 = tTerm2 * log(tTerm2);
+		const std::complex term3 = 2.0 * tCoefficient * log(tCoefficient);
+		const std::complex term4 = pow(reducedTemperature, 2.0) / tCoefficient;
+		const std::complex termSum = term1 + term2 - term3 - term4;
+		if (i == 0)
+		{
+			const double r1Real = IceComplexConstantsR[i].RealBase * pow(10.0, IceComplexConstantsR[i].RealExponent);
+			const double r1Imaginary = IceComplexConstantsR[i].ImaginaryBase * pow(10.0, IceComplexConstantsR[i].ImaginaryExponent);
+			const std::complex r1Coefficient(r1Real, r1Imaginary);
+			const std::complex r1Term = r1Coefficient * termSum;
+			summation += r1Term;
+		}
+		else
+		{
+			const std::complex r2Term = r2 * termSum;
+			summation += r2Term;
+		}
+	}
+	const double summationTerm = TRIPLE_POINT_TEMPERATURE * summation.real();
+	const double gibbsEnergy = residualGibbsEnergy + entropyTerm + summationTerm;
+	return gibbsEnergy;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificVolume(const double temperature, const double pressure) const
+{
+	return CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+}
+
+double WaterSteamEquationOfState::CalculateIceDensity(const double temperature, const double pressure) const
+{
+	const double specificVolume = CalculateIceSpecificVolume(temperature, pressure);
+	const double density = 1.0 / specificVolume;
+	return density;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificEntropy(const double temperature, const double pressure) const
+{
+	const double firstDerivativeGibbsEnergyTemperature = CalculateIceFirstDerivativeGibbsFreeEnergyTemperature(temperature, pressure);
+	return -1.0 * firstDerivativeGibbsEnergyTemperature / 1000;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificIsobaricHeatCapacity(const double temperature, const double pressure) const
+{
+	const double secondDerivativeGibbsEnergyTemperature = CalculateIceSecondDerivativeGibbsFreeEnergyTemperature(temperature, pressure);
+	const double specificIsobaricHeatCapacity = -1.0 * temperature * secondDerivativeGibbsEnergyTemperature;
+	return specificIsobaricHeatCapacity / 1000;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificIsochoricHeatCapacity(const double temperature, const double pressure) const
+{
+	return CalculateIceSpecificIsobaricHeatCapacity(temperature, pressure);
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificEnthalpy(const double temperature, const double pressure) const
+{
+	const double gibbsFreeEnergy = CalculateIceSpecificGibbsFreeEnergy(temperature, pressure);
+	const double firstDerivativeGibbsEnergyTemperature = CalculateIceFirstDerivativeGibbsFreeEnergyTemperature(temperature, pressure);
+	return (gibbsFreeEnergy - temperature * firstDerivativeGibbsEnergyTemperature) / 1000;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificInternalEnergy(const double temperature, const double pressure) const
+{
+	const double pressurePascals = pressure * 1e6;
+	const double specificEnthalpy = CalculateIceSpecificEnthalpy(temperature, pressure);
+	const double firstDerivativeGibbsEnergyPressure = CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	const double specificInternalEnergy = specificEnthalpy - pressurePascals * firstDerivativeGibbsEnergyPressure;
+	return specificInternalEnergy / 1000;
+}
+
+double WaterSteamEquationOfState::CalculateIceSpecificHelmholtzEnergy(const double temperature, const double pressure) const
+{
+	const double gibbsFreeEnergy = CalculateIceSpecificGibbsFreeEnergy(temperature, pressure);
+	const double firstDerivativeGibbsEnergyPressure = CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	const double specificHelmholtzEnergy = gibbsFreeEnergy - pressure * firstDerivativeGibbsEnergyPressure;
+	return specificHelmholtzEnergy;
+}
+
+double WaterSteamEquationOfState::CalculateIceCubicExpansionCoefficient(const double temperature, const double pressure) const
+{
+	const double secondMixedDerivativeGibbsEnergy = CalculateIceSecondMixedDerivativeGibbsFreeEnergyTemperaturePressure(temperature, pressure);
+	const double firstDerivativeGibbsEnergyPressure = CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	return secondMixedDerivativeGibbsEnergy / firstDerivativeGibbsEnergyPressure;
+}
+
+double WaterSteamEquationOfState::CalculateIcePressureCoefficient(const double temperature, const double pressure) const
+{
+	const double secondMixedDerivativeGibbsEnergy = CalculateIceSecondMixedDerivativeGibbsFreeEnergyTemperaturePressure(temperature, pressure);
+	const double secondDerivativeGibbsEnergyPressure = CalculateIceSecondDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	return -1.0 * secondMixedDerivativeGibbsEnergy / secondDerivativeGibbsEnergyPressure;
+}
+
+double WaterSteamEquationOfState::CalculateIceIsothermalCompressibility(const double temperature, const double pressure) const
+{
+	const double firstDerivativeGibbsEnergyPressure = CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	const double secondDerivativeGibbsEnergyPressure = CalculateIceSecondDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	return -1.0 * secondDerivativeGibbsEnergyPressure / firstDerivativeGibbsEnergyPressure;
+}
+
+double WaterSteamEquationOfState::CalculateIceIsentropicCompressibility(const double temperature, const double pressure) const
+{
+	const double firstDerivativeGibbsEnergyPressure = CalculateIceFirstDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	const double secondDerivativeGibbsEnergyTemperature = CalculateIceSecondDerivativeGibbsFreeEnergyTemperature(temperature, pressure);
+	const double secondDerivativeGibbsEnergyPressure = CalculateIceSecondDerivativeGibbsFreeEnergyPressure(temperature, pressure);
+	const double secondMixedDerivativeGibbsEnergy = CalculateIceSecondMixedDerivativeGibbsFreeEnergyTemperaturePressure(temperature, pressure);
+	const double numerator = secondMixedDerivativeGibbsEnergy * secondMixedDerivativeGibbsEnergy - secondDerivativeGibbsEnergyTemperature * secondDerivativeGibbsEnergyPressure;
+	const double denominator = firstDerivativeGibbsEnergyPressure * secondDerivativeGibbsEnergyTemperature;
+	return numerator / denominator;
 }
 
 #pragma endregion
@@ -1550,6 +2037,7 @@ double WaterSteamEquationOfState::CalculateSecondMixedDerivativeDimensionlessRes
 
 #pragma endregion
 
+#pragma region Exposed API Implementation
 WATERSTEAMEQUATIONOFSTATE_API WaterSteamEquationOfState* CreateWaterSteamEquationOfState(const char* databasePath)
 {
 	try
@@ -1654,3 +2142,4 @@ WATERSTEAMEQUATIONOFSTATE_API int CalculateSpeedOfSoundArray(
 	return CalculatePropertyArray(instance, temperatures, pressures, speedsOfSound, length,
 		&WaterSteamEquationOfState::CalculateSpeedOfSoundArray);
 }
+#pragma endregion
